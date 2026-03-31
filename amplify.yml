@@ -4,7 +4,7 @@ frontend:
     preBuild:
       commands:
         - nvm use 20 || nvm install 20
-        - npm --prefix inventory-ui ci
+        - npm --prefix inventory-ui install
     build:
       commands:
         - npm --prefix inventory-ui run build

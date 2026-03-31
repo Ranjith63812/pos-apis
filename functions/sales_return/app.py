@@ -175,10 +175,26 @@ def lambda_handler(event, context):
             if not params.get("id"):
                 return error_response("ID required", 400)
 
-            cursor.execute(
-                "DELETE FROM sale_returns WHERE sale_return_id=%s",
-                (params["id"],)
-            )
+            sale_return_id = params["id"]
+
+            # 🔥 1. Retrieve items to reverse stock updates
+            cursor.execute("SELECT product_id, quantity FROM sale_return_items WHERE sale_return_id=%s", (sale_return_id,))
+            returned_items = cursor.fetchall()
+            
+            # Since Sales Return *increased* stock, deleting it must *decrease* stock back
+            for item in returned_items:
+                cursor.execute("""
+                    UPDATE products 
+                    SET current_stock = current_stock - %s 
+                    WHERE product_id = %s
+                """, (item["quantity"], item["product_id"]))
+
+            # 🔥 2. Wipe child rows to prevent MySQL Foreign Key Constraint errors
+            cursor.execute("DELETE FROM sale_return_payments WHERE sale_return_id=%s", (sale_return_id,))
+            cursor.execute("DELETE FROM sale_return_items WHERE sale_return_id=%s", (sale_return_id,))
+
+            # 🔥 3. Wipe parent row
+            cursor.execute("DELETE FROM sale_returns WHERE sale_return_id=%s", (sale_return_id,))
 
             conn.commit()
 

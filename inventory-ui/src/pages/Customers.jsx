@@ -1,104 +1,227 @@
-import React, { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import DataTable from '../components/DataTable';
 import ConfirmDelete from '../components/ConfirmDelete';
+import ResourceModal from '../components/ResourceModal';
 import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from '../api/customerApi';
-
-const emptyForm = { customer_name: '', mobile: '', email: '', city: '', address: '', status: 1 };
+import { LayoutDashboard, Plus, ChevronDown, Users, UserCheck, UserX, MapPin } from 'lucide-react';
 
 export default function Customers() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [editId, setEditId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [modalShow, setModalShow] = useState(false);
+  const [editItem, setEditItem] = useState(null);
 
   const load = async () => {
     setLoading(true);
-    try { const res = await getCustomers(); setData(res.data || []); } catch { setData([]); }
+    try {
+      const res = await getCustomers();
+      const list = res.data?.data || res.data || [];
+      setData(list);
+    } catch (err) {
+      console.error('Failed to fetch customers:', err);
+      setData([]);
+    }
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => { setForm(emptyForm); setEditId(null); setError(''); setShowForm(true); };
-  const openEdit = (row) => {
-    setForm({ customer_name: row.customer_name, mobile: row.mobile || '', email: row.email || '',
-      city: row.city || '', address: row.address || '', status: row.status ?? 1 });
-    setEditId(row.customer_id); setError(''); setShowForm(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.customer_name) { setError('Customer name is required.'); return; }
-    setSaving(true);
-    try {
-      if (editId) await updateCustomer(editId, form);
-      else await createCustomer(form);
-      setShowForm(false); load();
-    } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to save.';
-      setError(msg);
+  const handleSave = async (formData) => {
+    if (editItem) {
+      await updateCustomer(editItem.customer_id, formData);
+    } else {
+      await createCustomer(formData);
     }
-    setSaving(false);
+    setModalShow(false);
+    load();
   };
 
   const handleDelete = async () => {
-    await deleteCustomer(deleteTarget.customer_id);
-    setDeleteTarget(null); load();
+    if (!deleteTarget) return;
+    try {
+      await deleteCustomer(deleteTarget.customer_id);
+      setDeleteTarget(null);
+      load();
+    } catch (err) {
+      alert('Failed to delete customer. They may have active sales records.');
+    }
   };
 
+  const stats = useMemo(() => {
+    const total = data.length;
+    const active = data.filter(c => c.status === 1).length;
+    const inactive = total - active;
+    const cities = new Set(data.map(c => c.city).filter(Boolean)).size;
+    return { total, active, inactive, cities };
+  }, [data]);
+
   const columns = [
-    { key: 'customer_name', label: 'Name' },
+    { key: 'customer_name', label: 'Customer Name', render: r => <span className="fw-bold text-primary">{r.customer_name}</span> },
     { key: 'mobile', label: 'Mobile' },
     { key: 'email', label: 'Email' },
     { key: 'city', label: 'City' },
-    { key: 'status', label: 'Status', render: (r) => r.status === 1 ? <span className="badge bg-success">Active</span> : <span className="badge bg-secondary">Inactive</span> },
+    { key: 'opening_balance', label: 'Balance', render: r => `₹ ${(r.opening_balance ?? 0).toFixed(2)}` },
+    { key: 'status', label: 'Status', render: r => {
+      let bg = r.status === 1 ? 'bg-success' : 'bg-danger';
+      return <span className={`badge ${bg} rounded-1 px-2 py-1`}>{r.status === 1 ? 'Active' : 'Inactive'}</span>;
+    }},
+    { key: 'action', label: 'Action', render: r => (
+      <div className="btn-group">
+        <button type="button" className="btn btn-info btn-sm dropdown-toggle rounded-0 text-white border-0" data-bs-toggle="dropdown" style={{ backgroundColor: '#3c8dbc' }}>
+          Action <ChevronDown size={14} className="ms-1"/>
+        </button>
+        <ul className="dropdown-menu shadow-sm rounded-0">
+          <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setEditItem(r); setModalShow(true); }}>Edit</a></li>
+          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setDeleteTarget(r); }}>Delete</a></li>
+        </ul>
+      </div>
+    )},
+  ];
+
+  const fields = [
+    { key: 'customer_name', label: 'Customer Name', required: true, placeholder: 'e.g. John Doe' },
+    { key: 'mobile', label: 'Mobile Number', placeholder: 'e.g. 9876543210' },
+    { key: 'email', label: 'Email Address', type: 'email', placeholder: 'e.g. john@example.com' },
+    { key: 'city', label: 'City', placeholder: 'e.g. Mumbai' },
+    { key: 'address', label: 'Full Address', type: 'textarea', fullWidth: true, placeholder: 'Street, Area, Pincode...' },
+    { key: 'opening_balance', label: 'Opening Balance (₹)', type: 'number', placeholder: '0.00' },
+    { key: 'status', label: 'Status', type: 'select', options: [{ value: 1, label: 'Active' }, { value: 0, label: 'Inactive' }], defaultValue: 1 },
   ];
 
   return (
-    <div className="page-content">
-      <Navbar title="Customers" />
-      <div className="content-body">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="text-muted mb-0">{data.length} records</h6>
-          <button className="btn btn-primary" onClick={openCreate}>+ Add Customer</button>
+    <>
+      <section className="content-header p-3 pb-0 d-flex justify-content-between align-items-center mb-3">
+        <h1 className="m-0 fs-3 fw-normal" style={{ color: '#333' }}>
+          Customers List <small className="text-muted fs-6 ms-2">Manage customer records</small>
+        </h1>
+        <ol className="breadcrumb m-0 bg-transparent p-0 float-end" style={{ fontSize: '13px' }}>
+          <li className="breadcrumb-item"><Link to="/" className="text-decoration-none text-muted"><LayoutDashboard size={12} className="me-1"/> Home</Link></li>
+          <li className="breadcrumb-item active">Customer List</li>
+        </ol>
+      </section>
+
+      <section className="content px-3 mb-4">
+        <div className="row g-3">
+          <div className="col-lg-3 col-6">
+            <div className="small-box bg-info rounded-1 text-white">
+              <div className="inner p-3">
+                <h3 className="mb-0 fw-bold">{stats.total}</h3>
+                <p className="mb-0">Total Customers</p>
+              </div>
+              <div className="icon">
+                <Users size={60} opacity={0.2} />
+              </div>
+              <Link to="#" className="small-box-footer text-decoration-none py-1 d-block text-center text-white-50">
+                More info <ChevronDown size={12} className="ms-1"/>
+              </Link>
+            </div>
+          </div>
+          <div className="col-lg-3 col-6">
+            <div className="small-box bg-success text-white rounded-1">
+              <div className="inner p-3">
+                <h3 className="mb-0 fw-bold">{stats.active}</h3>
+                <p className="mb-0">Active Customers</p>
+              </div>
+              <div className="icon">
+                <UserCheck size={60} opacity={0.2} />
+              </div>
+              <Link to="#" className="small-box-footer text-decoration-none py-1 d-block text-center text-white-50">
+                More info <ChevronDown size={12} className="ms-1"/>
+              </Link>
+            </div>
+          </div>
+          <div className="col-lg-3 col-6">
+            <div className="small-box bg-danger text-white rounded-1">
+              <div className="inner p-3">
+                <h3 className="mb-0 fw-bold">{stats.inactive}</h3>
+                <p className="mb-0">Inactive Customers</p>
+              </div>
+              <div className="icon">
+                <UserX size={60} opacity={0.2} />
+              </div>
+              <Link to="#" className="small-box-footer text-decoration-none py-1 d-block text-center text-white-50">
+                More info <ChevronDown size={12} className="ms-1"/>
+              </Link>
+            </div>
+          </div>
+          <div className="col-lg-3 col-6">
+            <div className="small-box bg-warning text-dark rounded-1">
+              <div className="inner p-3">
+                <h3 className="mb-0 fw-bold">{stats.cities}</h3>
+                <p className="mb-0">Unique Cities</p>
+              </div>
+              <div className="icon">
+                <MapPin size={60} opacity={0.2} />
+              </div>
+              <Link to="#" className="small-box-footer text-decoration-none py-1 d-block text-center text-dark-50">
+                More info <ChevronDown size={12} className="ms-1"/>
+              </Link>
+            </div>
+          </div>
         </div>
-        {showForm && (
-          <div className="card card-form mb-4"><div className="card-body">
-            <h6 className="mb-3">{editId ? 'Edit Customer' : 'Add Customer'}</h6>
-            {error && <div className="alert alert-danger py-2">{error}</div>}
-            <form onSubmit={handleSubmit} className="row g-3">
-              <div className="col-md-4"><label className="form-label">Name *</label>
-                <input className="form-control" value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} required />
+      </section>
+
+      <section className="content px-3 pb-5">
+        <div className="box box-primary border-top-0 rounded-0 shadow-sm mb-4">
+          <div className="box-body p-4 bg-white">
+            <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+              <div className="d-flex align-items-center gap-2">
+                <Users size={20} className="text-muted" />
+                <h5 className="mb-0 text-muted fs-6">Customers Data</h5>
               </div>
-              <div className="col-md-4"><label className="form-label">Mobile</label>
-                <input className="form-control" value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} />
+              <div className="text-end">
+                <button 
+                  className="btn btn-info text-white rounded-0 d-inline-flex gap-1 align-items-center" 
+                  style={{ backgroundColor: '#00c0ef', borderColor: '#00acd6' }}
+                  onClick={() => { setEditItem(null); setModalShow(true); }}
+                >
+                  <Plus size={16}/> New Customer
+                </button>
               </div>
-              <div className="col-md-4"><label className="form-label">Email</label>
-                <input className="form-control" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            </div>
+
+            <div className="row g-3 mb-3">
+              <div className="col-sm-6 d-flex align-items-center gap-2" style={{ fontSize: '14px' }}>
+                <span>Show</span>
+                <select className="form-select form-select-sm rounded-0 d-inline-block w-auto shadow-none">
+                  <option>10</option><option>25</option><option>50</option>
+                </select>
+                <span>entries</span>
               </div>
-              <div className="col-md-4"><label className="form-label">City</label>
-                <input className="form-control" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
+              <div className="col-sm-6 d-flex align-items-center justify-content-sm-end gap-2" style={{ fontSize: '14px' }}>
+                <span>Search:</span>
+                <input type="text" className="form-control form-control-sm rounded-0 shadow-none w-auto" style={{ minWidth: '200px' }} />
               </div>
-              <div className="col-md-8"><label className="form-label">Address</label>
-                <input className="form-control" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
-              </div>
-              <div className="col-12 d-flex gap-2">
-                <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
-                <button className="btn btn-secondary" type="button" onClick={() => setShowForm(false)}>Cancel</button>
-              </div>
-            </form>
-          </div></div>
-        )}
-        <div className="card"><div className="card-body p-0">
-          <DataTable columns={columns} data={data} loading={loading} onEdit={openEdit} onDelete={setDeleteTarget} />
-        </div></div>
-      </div>
-      <ConfirmDelete show={!!deleteTarget} itemName={deleteTarget?.customer_name} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
-    </div>
+            </div>
+
+            <DataTable 
+              columns={columns} 
+              data={data} 
+              loading={loading} 
+              onEdit={() => {}} 
+              onDelete={setDeleteTarget} 
+            />
+          </div>
+        </div>
+      </section>
+
+      <ResourceModal 
+        show={modalShow} 
+        title="Customer" 
+        item={editItem} 
+        fields={fields} 
+        onSave={handleSave} 
+        onCancel={() => setModalShow(false)} 
+      />
+
+      <ConfirmDelete 
+        show={!!deleteTarget} 
+        itemName={deleteTarget?.customer_name} 
+        onConfirm={handleDelete} 
+        onCancel={() => setDeleteTarget(null)} 
+      />
+    </>
   );
 }

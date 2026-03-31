@@ -1,102 +1,415 @@
-/* ── Global Reset ── */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', sans-serif; background: #f4f6fb; color: #333; }
+/* 
+  Ultimate Inventory with POS - Exact Clone CSS
+  Adheres to strict AdminLTE 3 / Bootstrap 3/4 layout styles
+*/
 
-/* ── Layout ── */
-.app-layout { display: flex; height: 100vh; overflow: hidden; }
-.main-area { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+:root {
+  /* AdminLTE Colors */
+  --light-blue: #3c8dbc;
+  --aqua: #00c0ef;
+  --green: #00a65a;
+  --yellow: #f39c12;
+  --red: #dd4b39;
+  --navy: #001f3f;
+  --teal: #39cccc;
+  --olive: #3d9970;
+  --lime: #01ff70;
+  --orange: #ff851b;
+  --fuchsia: #f012be;
+  --purple: #605ca8;
+  --maroon: #d81b60;
+  --black: #111111;
+  --gray: #d2d6de;
 
-/* ── Sidebar ── */
-.sidebar {
-  width: 230px; min-width: 230px;
-  background: #1a1f36;
-  color: #fff;
-  display: flex; flex-direction: column;
+  /* Layout Variables */
+  --sidebar-dark: #222d32;
+  --sidebar-hover: #1e282c;
+  --sidebar-active-left: #3c8dbc;
+  --header-bg: #17a2b8; /* Match user screenshot */
+  --content-bg: #ecf0f5;
+  --text-dark: #333;
+}
+
+body {
+  margin: 0;
+  font-family: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background-color: var(--content-bg);
+  color: var(--text-dark);
+}
+
+/* ===========================
+   1. APP LAYOUT STRUCTURE
+   =========================== */
+.app-layout {
+  display: flex;
   height: 100vh;
+  overflow: hidden;
+  background-color: var(--content-bg);
 }
-.sidebar-brand {
-  padding: 20px 18px 16px;
-  font-size: 1.1rem; font-weight: 700;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+
+.sidebar {
+  width: 230px;
+  background-color: var(--sidebar-dark);
+  color: #b8c7ce;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: width 0.3s;
+  z-index: 1000;
 }
-.sidebar-nav { padding: 12px 0; }
-.sidebar-link {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 18px;
-  color: rgba(255,255,255,0.7);
+
+.main-area {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-content {
+  padding: 15px;
+  overflow-y: auto;
+  flex-grow: 1;
+  background-color: var(--content-bg);
+}
+
+/* ===========================
+   2. TOPBAR LOGO & HEADER
+   =========================== */
+.topbar {
+  height: 50px;
+  background-color: var(--header-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  color: white;
+  box-shadow: none; /* Flat design */
+}
+
+/* Logo block spans into topbar height but visually fits over sidebar */
+.logo {
+  background-color: #367fa9;
+  color: #fff;
+  border-bottom: 0 solid transparent;
+  width: 230px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 300;
+}
+.logo b {
+  font-weight: 700;
+}
+
+/* Topbar Links */
+.navbar-custom-menu > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  height: 50px;
+}
+.navbar-custom-menu > ul > li {
+  position: relative;
+}
+.navbar-custom-menu a {
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 15px;
   text-decoration: none;
-  font-size: 0.9rem;
-  border-left: 3px solid transparent;
-  transition: all 0.2s;
+  height: 100%;
 }
-.sidebar-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
-.sidebar-link.active { color: #fff; background: rgba(99,102,241,0.25); border-left-color: #6366f1; }
-.sidebar-icon { font-size: 1rem; width: 20px; text-align: center; }
-.sidebar-footer { padding: 12px 18px; font-size: 0.75rem; color: rgba(255,255,255,0.3); border-top: 1px solid rgba(255,255,255,0.08); }
-
-/* ── Collapsible group header (e.g. Places) ── */
-.sidebar-group-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 18px;
-  color: rgba(255,255,255,0.7);
-  font-size: 0.9rem;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s;
+.navbar-custom-menu a:hover {
+  background: rgba(0,0,0,0.1);
 }
-.sidebar-group-header:hover { background: rgba(255,255,255,0.05); color: #fff; }
 
-/* ── Sub-links inside a group ── */
-.sidebar-sublink { padding-left: 38px !important; font-size: 0.85rem; }
-
-/* ── Top Navbar ── */
-.top-navbar {
-  height: 56px; min-height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 24px;
+/* ===========================
+   3. SIDEBAR NAVIGATION
+   =========================== */
+.user-panel {
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  color: white;
 }
-.avatar-circle {
-  width: 32px; height: 32px;
-  background: #6366f1; color: #fff;
+.user-panel .image {
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  background-color: #ff003c; /* Matches screenshot red dot pattern */
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; font-weight: 700;
+  font-weight: bold;
+}
+.user-panel p {
+  font-weight: 600;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.user-panel span {
+  font-size: 11px;
+}
+.user-panel .status-indicator {
+  width: 10px;
+  height: 10px;
+  background-color: #3c763d;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
 }
 
-/* ── Page Content ── */
-.page-content { display: flex; flex-direction: column; height: 100%; }
-.content-body { flex: 1; padding: 24px; overflow-y: auto; }
-
-/* ── Cards ── */
-.card { border: none; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
-.card-form { background: #fff; }
-
-/* ── Stat Cards ── */
-.stat-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px 24px;
-  display: flex; align-items: center; gap: 18px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+.sidebar-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-.stat-icon { font-size: 2rem; }
-.stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
-.stat-label { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
-
-/* ── Table ── */
-.table thead th { font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
-.table tbody tr:hover { background: #f9fafb; }
-
-/* ── Confirm Delete Modal ── */
-.modal-backdrop-custom {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999;
+.sidebar-menu > li > a {
+  padding: 12px 15px 12px 15px;
+  display: flex;
+  align-items: center;
+  color: #b8c7ce;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  justify-content: space-between;
 }
-.modal-dialog-custom { width: 100%; max-width: 420px; padding: 0 16px; }
+.sidebar-menu > li:hover > a, .sidebar-menu > li.active > a {
+  color: #fff;
+  background: var(--sidebar-hover);
+  border-left-color: var(--sidebar-active-left);
+}
+.sidebar-menu a .icon {
+  margin-right: 10px;
+  width: 20px;
+  text-align: center;
+  color: #17a2b8; /* Menu blue icon tint */
+}
+.sidebar-menu > li:hover > a .icon {
+  color: #fff;
+}
 
-/* ── Buttons ── */
-.btn-primary { background: #6366f1; border-color: #6366f1; }
-.btn-primary:hover { background: #4f46e5; border-color: #4f46e5; }
+/* Treeview Menu (Submenu) */
+.treeview-menu {
+  display: none;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: #2c3b41;
+}
+.treeview.menu-open .treeview-menu {
+  display: block;
+}
+.treeview-menu > li {
+  margin: 0;
+}
+.treeview-menu > li > a {
+  padding: 10px 15px 10px 30px; /* indentation */
+  display: flex;
+  align-items: center;
+  color: #8aa4af;
+  text-decoration: none;
+  font-size: 14px;
+}
+.treeview-menu > li > a > .icon {
+  width: 15px;
+  margin-right: 10px;
+  color: #8aa4af;
+}
+.treeview-menu > li > a:hover {
+  color: #fff;
+}
+
+/* ===========================
+   4. STAT BOXES (.small-box)
+   =========================== */
+/* The key screenshot pattern: Light Blue, Green, Orange, Red blocks */
+.small-box {
+  border-radius: 2px;
+  position: relative;
+  display: block;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  color: #fff;
+}
+.small-box.bg-aqua { background-color: var(--aqua) !important; }
+.small-box.bg-green { background-color: var(--green) !important; }
+.small-box.bg-yellow { background-color: var(--yellow) !important; }
+.small-box.bg-red { background-color: var(--red) !important; }
+
+.small-box > .inner {
+  padding: 15px;
+  min-height: 120px;
+}
+.small-box h3 {
+  font-size: 38px;
+  font-weight: bold;
+  margin: 0 0 10px 0;
+  white-space: nowrap;
+  padding: 0;
+  z-index: 5;
+  position: relative;
+}
+.small-box p {
+  font-size: 15px;
+  z-index: 5;
+  position: relative;
+  margin-bottom: 0;
+}
+.small-box .icon {
+  transition: all 0.3s linear;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 0;
+  font-size: 70px;
+  color: rgba(0,0,0,0.15);
+}
+.small-box:hover .icon {
+  transform: scale(1.1);
+}
+.small-box > .small-box-footer {
+  position: relative;
+  text-align: center;
+  padding: 6px 0;
+  color: #fff;
+  color: rgba(255,255,255,0.8);
+  display: block;
+  z-index: 10;
+  background: rgba(0,0,0,0.1);
+  text-decoration: none;
+  font-size: 13px;
+}
+.small-box > .small-box-footer:hover {
+  color: #fff;
+  background: rgba(0,0,0,0.15);
+}
+
+/* ===========================
+   5. ALERTS & UI BLOCKS
+   =========================== */
+.alert-custom-green {
+  background-color: #00a65a;
+  color: white;
+  border-radius: 3px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.box {
+  position: relative;
+  border-radius: 3px;
+  background: #ffffff;
+  border-top: 3px solid #d2d6de;
+  margin-bottom: 20px;
+  width: 100%;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+.box.box-primary { border-top-color: #3c8dbc; }
+.box-header {
+  color: #444;
+  display: block;
+  padding: 15px;
+  position: relative;
+}
+.box-header.with-border {
+  border-bottom: 1px solid #f4f4f4;
+}
+.box-title {
+  display: inline-block;
+  font-size: 18px;
+  margin: 0;
+  line-height: 1;
+}
+.box-body {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 3px;
+  border-bottom-left-radius: 3px;
+  padding: 15px;
+}
+
+/* ===========================
+   6. TABLES & BUTTONS
+   =========================== */
+.table-bordered {
+  border: 1px solid #f4f4f4;
+}
+.table-bordered>thead>tr>th {
+  background-color: #3c8dbc;
+  color: white;
+  border-bottom-width: 2px;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+}
+
+/* The distinct top-right action buttons */
+.btn-group-toggle .btn {
+  border-radius: 0;
+  border-right: 1px solid rgba(255,255,255,0.3);
+}
+.btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+/* ===========================
+   7. LOGIN PAGE OVERRIDES
+   =========================== */
+.login-page {
+  background-image: url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+/* Dark overlay to make the blurry background authentic */
+.login-page::before {
+  content: '';
+  position: absolute;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.4);
+}
+.login-box {
+  width: 380px;
+  margin: 7% auto;
+  position: relative;
+  z-index: 10;
+}
+
+/* Premium Form Elements Backports */
+.form-control-premium {
+  border-radius: 3px;
+  border: 1px solid #d2d6de;
+  box-shadow: none;
+}
+.form-control-premium:focus {
+  border-color: #3c8dbc;
+}
+
+/* Hide soft premium styles leftover from crud */
+.card-premium, .card-header-premium, .card-title-premium, .card-body-premium, .btn-premium {
+  border-radius: 3px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  background: white;
+}
+.table-modern {
+  width: 100%;
+  margin-bottom: 1rem;
+  vertical-align: top;
+  border-color: #dee2e6;
+}
+.table-modern thead th {
+  background-color: #3c8dbc;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+}

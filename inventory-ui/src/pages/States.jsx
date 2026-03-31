@@ -1,208 +1,158 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
+import { Link } from 'react-router-dom';
 import DataTable from '../components/DataTable';
 import ConfirmDelete from '../components/ConfirmDelete';
+import ResourceModal from '../components/ResourceModal';
 import { getStates, createState, updateState, deleteState } from '../api/stateApi';
-import { getCountries } from '../api/countryApi';   // ← needed for dropdown
-
-// ── Empty form default values ──────────────────────────────────────────────────
-const emptyForm = { state_name: '', country_id: '', status: 1 };
+import { getCountries } from '../api/countryApi';
+import { LayoutDashboard, Plus, ChevronDown, MapPin } from 'lucide-react';
 
 export default function States() {
-
-  // ── State ─────────────────────────────────────────────────────────────────────
   const [data, setData] = useState([]);
-  const [countries, setCountries] = useState([]);  // dropdown options
+  const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [editId, setEditId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [modalShow, setModalShow] = useState(false);
+  const [editItem, setEditItem] = useState(null);
 
-  // ── Load states list from API ──────────────────────────────────────────────────
   const load = async () => {
     setLoading(true);
     try {
-      const res = await getStates();     // GET /states
-      setData(res.data || []);
-    } catch {
+      const [resS, resC] = await Promise.all([getStates(), getCountries()]);
+      setData(resS.data?.data || resS.data || []);
+      setCountries(resC.data?.data || resC.data || []);
+    } catch (err) {
+      console.error('Failed to fetch states:', err);
       setData([]);
     }
     setLoading(false);
   };
 
-  // ── Load country dropdown on first mount ───────────────────────────────────────
-  useEffect(() => {
+  useEffect(() => { load(); }, []);
+
+  const handleSave = async (formData) => {
+    if (editItem) {
+      await updateState(editItem.state_id, formData);
+    } else {
+      await createState(formData);
+    }
+    setModalShow(false);
     load();
-    getCountries().then(res => setCountries(res.data || [])).catch(() => {});
-  }, []);
-
-  // ── Open blank form for CREATE ─────────────────────────────────────────────────
-  const openCreate = () => {
-    setForm(emptyForm);
-    setEditId(null);
-    setError('');
-    setShowForm(true);
   };
 
-  // ── Open pre-filled form for EDIT ─────────────────────────────────────────────
-  const openEdit = (row) => {
-    setForm({
-      state_name: row.state_name,
-      country_id: row.country_id || '',  // pre-select the country in dropdown
-      status: row.status ?? 1,
-    });
-    setEditId(row.state_id);
-    setError('');
-    setShowForm(true);
-  };
-
-  // ── Handle form submit (POST or PUT) ──────────────────────────────────────────
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.state_name.trim()) { setError('State name is required.'); return; }
-    if (!form.country_id)        { setError('Please select a country.'); return; }
-
-    setSaving(true);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      if (editId) {
-        await updateState(editId, form);  // PUT /states?id=x
-      } else {
-        await createState(form);           // POST /states
-      }
-      setShowForm(false);
+      await deleteState(deleteTarget.state_id);
+      setDeleteTarget(null);
       load();
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Failed to save.';
-      setError(msg);
+      alert('Failed to delete state.');
     }
-    setSaving(false);
   };
 
-  // ── Handle delete confirm ──────────────────────────────────────────────────────
-  const handleDelete = async () => {
-    await deleteState(deleteTarget.state_id);  // DELETE /states?id=x
-    setDeleteTarget(null);
-    load();
-  };
-
-  // ── Table column definitions ──────────────────────────────────────────────────
   const columns = [
-    { key: 'state_name', label: 'State Name' },
-    { key: 'country_name', label: 'Country' },   // joined from API
-    {
-      key: 'status', label: 'Status',
-      render: (row) => row.status === 1
-        ? <span className="badge bg-success">Active</span>
-        : <span className="badge bg-secondary">Inactive</span>
-    },
+    { key: 'state_name', label: 'State Name', render: r => <span className="fw-bold text-primary">{r.state_name}</span> },
+    { key: 'country_name', label: 'Country' },
+    { key: 'status', label: 'Status', render: r => {
+      let bg = r.status === 1 ? 'bg-success' : 'bg-danger';
+      return <span className={`badge ${bg} rounded-1 px-2 py-1`}>{r.status === 1 ? 'Active' : 'Inactive'}</span>;
+    }},
+    { key: 'action', label: 'Action', render: r => (
+      <div className="btn-group">
+        <button type="button" className="btn btn-info btn-sm dropdown-toggle rounded-0 text-white border-0" data-bs-toggle="dropdown" style={{ backgroundColor: '#3c8dbc' }}>
+          Action <ChevronDown size={14} className="ms-1"/>
+        </button>
+        <ul className="dropdown-menu shadow-sm rounded-0">
+          <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setEditItem(r); setModalShow(true); }}>Edit</a></li>
+          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setDeleteTarget(r); }}>Delete</a></li>
+        </ul>
+      </div>
+    )},
   ];
 
-  // ── Render ─────────────────────────────────────────────────────────────────────
+  const fields = [
+    { key: 'state_name', label: 'State Name', required: true, placeholder: 'e.g. Maharashtra' },
+    { 
+      key: 'country_id', 
+      label: 'Country', 
+      type: 'select', 
+      required: true,
+      options: countries.map(c => ({ value: c.country_id, label: c.country_name }))
+    },
+    { key: 'status', label: 'Status', type: 'select', options: [{ value: 1, label: 'Active' }, { value: 0, label: 'Inactive' }], defaultValue: 1 },
+  ];
+
   return (
-    <div className="page-content">
-      <Navbar title="States" />
+    <>
+      <section className="content-header p-3 pb-0 d-flex justify-content-between align-items-center mb-3">
+        <h1 className="m-0 fs-3 fw-normal" style={{ color: '#333' }}>
+          States List <small className="text-muted fs-6 ms-2">Manage provinces/states</small>
+        </h1>
+        <ol className="breadcrumb m-0 bg-transparent p-0 float-end" style={{ fontSize: '13px' }}>
+          <li className="breadcrumb-item"><Link to="/" className="text-decoration-none text-muted"><LayoutDashboard size={12} className="me-1"/> Home</Link></li>
+          <li className="breadcrumb-item active">State List</li>
+        </ol>
+      </section>
 
-      <div className="content-body">
-
-        {/* ── Header row ── */}
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="text-muted mb-0">{data.length} records</h6>
-          <button className="btn btn-primary" onClick={openCreate}>
-            + Add State
-          </button>
-        </div>
-
-        {/* ── Add / Edit Form ── */}
-        {showForm && (
-          <div className="card card-form mb-4">
-            <div className="card-body">
-              <h6 className="mb-3">{editId ? 'Edit State' : 'Add State'}</h6>
-
-              {error && <div className="alert alert-danger py-2">{error}</div>}
-
-              <form onSubmit={handleSubmit} className="row g-3">
-
-                {/* State Name */}
-                <div className="col-md-4">
-                  <label className="form-label">State Name <span className="text-danger">*</span></label>
-                  <input
-                    className="form-control"
-                    placeholder="e.g. Tamil Nadu"
-                    value={form.state_name}
-                    onChange={e => setForm({ ...form, state_name: e.target.value })}
-                  />
-                </div>
-
-                {/* Country Dropdown — populated from GET /countries ── */}
-                <div className="col-md-4">
-                  <label className="form-label">Country <span className="text-danger">*</span></label>
-                  <select
-                    className="form-select"
-                    value={form.country_id}
-                    onChange={e => setForm({ ...form, country_id: e.target.value })}
-                  >
-                    <option value="">-- Select Country --</option>
-                    {countries.map(c => (
-                      <option key={c.country_id} value={c.country_id}>
-                        {c.country_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Status */}
-                <div className="col-md-4">
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-select"
-                    value={form.status}
-                    onChange={e => setForm({ ...form, status: parseInt(e.target.value) })}
-                  >
-                    <option value={1}>Active</option>
-                    <option value={0}>Inactive</option>
-                  </select>
-                </div>
-
-                {/* Buttons */}
-                <div className="col-12 d-flex gap-2">
-                  <button className="btn btn-primary" type="submit" disabled={saving}>
-                    {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
-                  </button>
-                  <button className="btn btn-secondary" type="button" onClick={() => setShowForm(false)}>
-                    Cancel
-                  </button>
-                </div>
-
-              </form>
+      <section className="content px-3 pb-5">
+        <div className="box box-primary border-top-0 rounded-0 shadow-sm mb-4">
+          <div className="box-body p-4 bg-white">
+            <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+              <div className="d-flex align-items-center gap-2">
+                <MapPin size={20} className="text-muted" />
+                <h5 className="mb-0 text-muted fs-6">States Data</h5>
+              </div>
+              <div className="text-end">
+                <button 
+                  className="btn btn-info text-white rounded-0 d-inline-flex gap-1 align-items-center" 
+                  style={{ backgroundColor: '#00c0ef', borderColor: '#00acd6' }}
+                  onClick={() => { setEditItem(null); setModalShow(true); }}
+                >
+                  <Plus size={16}/> New State
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+            <div className="row g-3 mb-3">
+              <div className="col-sm-6 d-flex align-items-center gap-2" style={{ fontSize: '14px' }}>
+                <span>Show</span>
+                <select className="form-select form-select-sm rounded-0 d-inline-block w-auto shadow-none">
+                  <option>10</option><option>25</option><option>50</option>
+                </select>
+                <span>entries</span>
+              </div>
+              <div className="col-sm-6 d-flex align-items-center justify-content-sm-end gap-2" style={{ fontSize: '14px' }}>
+                <span>Search:</span>
+                <input type="text" className="form-control form-control-sm rounded-0 shadow-none w-auto" style={{ minWidth: '200px' }} />
+              </div>
+            </div>
 
-        {/* ── States Table ── */}
-        <div className="card">
-          <div className="card-body p-0">
-            <DataTable
-              columns={columns}
-              data={data}
-              loading={loading}
-              onEdit={openEdit}
-              onDelete={setDeleteTarget}
+            <DataTable 
+              columns={columns} 
+              data={data} 
+              loading={loading} 
+              onEdit={() => {}} 
+              onDelete={setDeleteTarget} 
             />
           </div>
         </div>
+      </section>
 
-      </div>
-
-      {/* ── Delete Confirm Modal ── */}
-      <ConfirmDelete
-        show={!!deleteTarget}
-        itemName={deleteTarget?.state_name}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteTarget(null)}
+      <ResourceModal 
+        show={modalShow} 
+        title="State" 
+        item={editItem} 
+        fields={fields} 
+        onSave={handleSave} 
+        onCancel={() => setModalShow(false)} 
       />
-    </div>
+
+      <ConfirmDelete 
+        show={!!deleteTarget} 
+        itemName={deleteTarget?.state_name} 
+        onConfirm={handleDelete} 
+        onCancel={() => setDeleteTarget(null)} 
+      />
+    </>
   );
 }

@@ -1,0 +1,17 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd inventory-ui
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: inventory-ui/build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - inventory-ui/node_modules/**/*

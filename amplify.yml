@@ -3,11 +3,11 @@ frontend:
   phases:
     preBuild:
       commands:
-        - cd inventory-ui
-        - npm ci
+        - nvm use 20 || nvm install 20
+        - npm --prefix inventory-ui ci
     build:
       commands:
-        - npm run build
+        - npm --prefix inventory-ui run build
   artifacts:
     baseDirectory: inventory-ui/build
     files:

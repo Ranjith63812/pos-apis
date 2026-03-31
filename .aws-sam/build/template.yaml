@@ -1,0 +1,2177 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: POS Places API
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 30
+    MemorySize: 128
+    CodeUri: .
+    Environment:
+      Variables:
+        DB_HOST: kapni-db.cl6mgq2ichp6.ap-south-1.rds.amazonaws.com
+        DB_USER: admin
+        DB_PASSWORD: Ranjith123
+        DB_NAME: inventory_pos
+        DB_PORT: '3306'
+Resources:
+  PlacesApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Models:
+        CountryBody:
+          type: object
+          properties:
+            country_name:
+              type: string
+            status:
+              type: integer
+          required:
+          - country_name
+        StateBody:
+          type: object
+          properties:
+            state_name:
+              type: string
+            country_id:
+              type: integer
+            status:
+              type: integer
+          required:
+          - state_name
+          - country_id
+        CustomerBody:
+          type: object
+          properties:
+            customer_name:
+              type: string
+            mobile:
+              type: string
+            email:
+              type: string
+            tax_number:
+              type: string
+            country_id:
+              type: integer
+            state_id:
+              type: integer
+            city:
+              type: string
+            postcode:
+              type: string
+            address:
+              type: string
+            opening_balance:
+              type: number
+            status:
+              type: integer
+          required:
+          - customer_name
+        SupplierBody:
+          type: object
+          properties:
+            supplier_name:
+              type: string
+            mobile:
+              type: string
+            email:
+              type: string
+            tax_number:
+              type: string
+            country_id:
+              type: integer
+            state_id:
+              type: integer
+            city:
+              type: string
+            postcode:
+              type: string
+            address:
+              type: string
+            opening_balance:
+              type: number
+            status:
+              type: integer
+          required:
+          - supplier_name
+        ProductBody:
+          type: object
+          properties:
+            item_code:
+              type: string
+            item_name:
+              type: string
+            brand_id:
+              type: integer
+            category_id:
+              type: integer
+            unit_id:
+              type: integer
+            sku:
+              type: string
+            hsn:
+              type: string
+            barcode:
+              type: string
+            minimum_qty:
+              type: integer
+            description:
+              type: string
+            price:
+              type: number
+            tax_id:
+              type: integer
+            tax_type:
+              type: string
+            purchase_price:
+              type: number
+            profit_margin:
+              type: number
+            sales_price:
+              type: number
+            final_price:
+              type: number
+            discount_type:
+              type: string
+            discount:
+              type: number
+            expire_date:
+              type: string
+            product_image:
+              type: string
+            status:
+              type: integer
+          required:
+          - item_name
+        CategoryBody:
+          type: object
+          properties:
+            category_code:
+              type: string
+            category_name:
+              type: string
+            description:
+              type: string
+            status:
+              type: integer
+          required:
+          - category_name
+        BrandBody:
+          type: object
+          properties:
+            brand_code:
+              type: string
+            brand_name:
+              type: string
+            description:
+              type: string
+            status:
+              type: integer
+          required:
+          - brand_name
+        UnitBody:
+          type: object
+          properties:
+            unit_name:
+              type: string
+            description:
+              type: string
+            status:
+              type: integer
+          required:
+          - unit_name
+        TaxBody:
+          type: object
+          properties:
+            tax_name:
+              type: string
+            tax_percentage:
+              type: number
+            status:
+              type: integer
+          required:
+          - tax_name
+        SalesBody:
+          type: object
+          properties:
+            customer_id:
+              type: integer
+            sale_date:
+              type: string
+            reference_no:
+              type: string
+            status:
+              type: string
+            created_by:
+              type: integer
+            other_charges:
+              type: number
+            discount_on_all:
+              type: number
+            note:
+              type: string
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  product_id:
+                    type: integer
+                  quantity:
+                    type: integer
+                  unit_price:
+                    type: number
+                  discount:
+                    type: number
+                  tax_amount:
+                    type: number
+                  total_amount:
+                    type: number
+            payment:
+              type: object
+              properties:
+                payment_date:
+                  type: string
+                payment_type_id:
+                  type: integer
+                amount:
+                  type: number
+                note:
+                  type: string
+          required:
+          - customer_id
+          - sale_date
+          - items
+        SaleReturnBody:
+          type: object
+          properties:
+            sale_id:
+              type: integer
+            return_date:
+              type: string
+            reference_no:
+              type: string
+            status:
+              type: string
+            created_by:
+              type: integer
+            other_charges:
+              type: number
+            discount_on_all:
+              type: number
+            note:
+              type: string
+            items:
+              type: array
+              items:
+                $ref: '#/definitions/SaleReturnItemBody'
+            payment:
+              $ref: '#/definitions/SaleReturnPaymentBody'
+          required:
+          - sale_id
+          - return_date
+          - items
+        PurchaseReturnBody:
+          type: object
+          properties:
+            purchase_id:
+              type: integer
+            return_date:
+              type: string
+            reference_no:
+              type: string
+            status:
+              type: string
+            created_by:
+              type: integer
+            other_charges:
+              type: number
+            discount_on_all:
+              type: number
+            note:
+              type: string
+            items:
+              type: array
+              items:
+                $ref: '#/definitions/PurchaseReturnItemBody'
+            payment:
+              $ref: '#/definitions/PurchaseReturnPaymentBody'
+          required:
+          - purchase_id
+          - return_date
+          - items
+        ExpenseBody:
+          type: object
+          properties:
+            expense_date:
+              type: string
+            category_id:
+              type: integer
+            reference_no:
+              type: string
+            expense_for:
+              type: string
+            amount:
+              type: number
+            note:
+              type: string
+            created_by:
+              type: integer
+          required:
+          - expense_date
+          - category_id
+          - amount
+        PurchaseBody:
+          type: object
+          properties:
+            supplier_id:
+              type: integer
+            purchase_date:
+              type: string
+            reference_no:
+              type: string
+            total_amount:
+              type: number
+            paid_amount:
+              type: number
+            due_amount:
+              type: number
+            status:
+              type: string
+            created_by:
+              type: integer
+            items:
+              type: array
+              items:
+                $ref: '#/definitions/PurchaseItemBody'
+            payment:
+              $ref: '#/definitions/PurchasePaymentBody'
+          required:
+          - supplier_id
+          - purchase_date
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title: Places API
+          version: '1.0'
+        schemes:
+        - https
+        consumes:
+        - application/json
+        produces:
+        - application/json
+        paths:
+          /countries:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/CountryBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/CountryBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /states:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/StateBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/StateBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PlacesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /customers:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CustomersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/CustomerBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CustomersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/CustomerBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CustomersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CustomersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /suppliers:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SuppliersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/SupplierBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SuppliersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/SupplierBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SuppliersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SuppliersFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /categories:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CategoriesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/CategoryBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CategoriesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/CategoryBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CategoriesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CategoriesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /products:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProductsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/ProductBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProductsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/ProductBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProductsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProductsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /brands:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BrandsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/BrandBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BrandsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/BrandBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BrandsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BrandsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /units:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UnitsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/UnitBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UnitsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/UnitBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UnitsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UnitsFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /taxes:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaxesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/TaxBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaxesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/TaxBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaxesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TaxesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /purchases:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchasesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/PurchaseBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchasesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/PurchaseBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchasesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchasesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /expenses:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpensesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/ExpenseBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpensesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/ExpenseBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpensesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExpensesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /purchase-return:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchaseReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/PurchaseReturnBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchaseReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/PurchaseReturnBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchaseReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PurchaseReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /sales-return:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/SaleReturnBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/SaleReturnBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesReturnFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+          /sales:
+            get:
+              parameters:
+              - name: id
+                in: query
+                required: false
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            post:
+              parameters:
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/SalesBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            put:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              - in: body
+                name: body
+                schema:
+                  $ref: '#/definitions/SalesBody'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+            delete:
+              parameters:
+              - name: id
+                in: query
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SalesFunction.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+              responses:
+                '200':
+                  description: Success
+        definitions:
+          CountryBody:
+            type: object
+            properties:
+              country_name:
+                type: string
+              status:
+                type: integer
+            required:
+            - country_name
+          StateBody:
+            type: object
+            properties:
+              state_name:
+                type: string
+              country_id:
+                type: integer
+              status:
+                type: integer
+            required:
+            - state_name
+            - country_id
+          CustomerBody:
+            type: object
+            properties:
+              customer_name:
+                type: string
+              mobile:
+                type: string
+              email:
+                type: string
+              tax_number:
+                type: string
+              country_id:
+                type: integer
+              state_id:
+                type: integer
+              city:
+                type: string
+              postcode:
+                type: string
+              address:
+                type: string
+              opening_balance:
+                type: number
+              status:
+                type: integer
+            required:
+            - customer_name
+          SupplierBody:
+            type: object
+            properties:
+              supplier_name:
+                type: string
+              mobile:
+                type: string
+              email:
+                type: string
+              tax_number:
+                type: string
+              country_id:
+                type: integer
+              state_id:
+                type: integer
+              city:
+                type: string
+              postcode:
+                type: string
+              address:
+                type: string
+              opening_balance:
+                type: number
+              status:
+                type: integer
+            required:
+            - supplier_name
+          ProductBody:
+            type: object
+            properties:
+              item_code:
+                type: string
+              item_name:
+                type: string
+              brand_id:
+                type: integer
+              category_id:
+                type: integer
+              unit_id:
+                type: integer
+              sku:
+                type: string
+              hsn:
+                type: string
+              barcode:
+                type: string
+              minimum_qty:
+                type: integer
+              description:
+                type: string
+              price:
+                type: number
+              tax_id:
+                type: integer
+              tax_type:
+                type: string
+              purchase_price:
+                type: number
+              profit_margin:
+                type: number
+              sales_price:
+                type: number
+              final_price:
+                type: number
+              discount_type:
+                type: string
+              discount:
+                type: number
+              expire_date:
+                type: string
+              product_image:
+                type: string
+              status:
+                type: integer
+            required:
+            - item_name
+          CategoryBody:
+            type: object
+            properties:
+              category_code:
+                type: string
+              category_name:
+                type: string
+              description:
+                type: string
+              status:
+                type: integer
+            required:
+            - category_name
+          BrandBody:
+            type: object
+            properties:
+              brand_code:
+                type: string
+              brand_name:
+                type: string
+              description:
+                type: string
+              status:
+                type: integer
+            required:
+            - brand_name
+          UnitBody:
+            type: object
+            properties:
+              unit_name:
+                type: string
+              description:
+                type: string
+              status:
+                type: integer
+            required:
+            - unit_name
+          TaxBody:
+            type: object
+            properties:
+              tax_name:
+                type: string
+              tax_percentage:
+                type: number
+              status:
+                type: integer
+            required:
+            - tax_name
+          PurchaseBody:
+            type: object
+            properties:
+              supplier_id:
+                type: integer
+              purchase_date:
+                type: string
+              reference_no:
+                type: string
+              total_amount:
+                type: number
+              paid_amount:
+                type: number
+              due_amount:
+                type: number
+              status:
+                type: string
+              created_by:
+                type: integer
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/PurchaseItemBody'
+              payment:
+                $ref: '#/definitions/PurchasePaymentBody'
+          PurchaseItemBody:
+            type: object
+            properties:
+              product_id:
+                type: integer
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+              tax_amount:
+                type: number
+              total_amount:
+                type: number
+          PurchasePaymentBody:
+            type: object
+            properties:
+              payment_date:
+                type: string
+              payment_type_id:
+                type: integer
+              amount:
+                type: number
+              note:
+                type: string
+          SaleItemBody:
+            type: object
+            properties:
+              product_id:
+                type: integer
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+              discount:
+                type: number
+              tax_amount:
+                type: number
+              total_amount:
+                type: number
+          SalePaymentBody:
+            type: object
+            properties:
+              payment_date:
+                type: string
+              payment_type_id:
+                type: integer
+              amount:
+                type: number
+              note:
+                type: string
+          SalesBody:
+            type: object
+            properties:
+              customer_id:
+                type: integer
+              sale_date:
+                type: string
+              reference_no:
+                type: string
+              status:
+                type: string
+              created_by:
+                type: integer
+              other_charges:
+                type: number
+              discount_on_all:
+                type: number
+              note:
+                type: string
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/SaleItemBody'
+              payment:
+                $ref: '#/definitions/SalePaymentBody'
+            required:
+            - customer_id
+            - sale_date
+          SaleReturnItemBody:
+            type: object
+            properties:
+              product_id:
+                type: integer
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+              discount:
+                type: number
+              tax_amount:
+                type: number
+              total_amount:
+                type: number
+          SaleReturnPaymentBody:
+            type: object
+            properties:
+              payment_date:
+                type: string
+              payment_type_id:
+                type: integer
+              amount:
+                type: number
+              note:
+                type: string
+          PurchaseReturnItemBody:
+            type: object
+            properties:
+              product_id:
+                type: integer
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+              discount:
+                type: number
+              tax_amount:
+                type: number
+              total_amount:
+                type: number
+          PurchaseReturnPaymentBody:
+            type: object
+            properties:
+              payment_date:
+                type: string
+              payment_type_id:
+                type: integer
+              amount:
+                type: number
+              note:
+                type: string
+          PurchaseReturnBody:
+            type: object
+            properties:
+              purchase_id:
+                type: integer
+              return_date:
+                type: string
+              reference_no:
+                type: string
+              status:
+                type: string
+              created_by:
+                type: integer
+              other_charges:
+                type: number
+              discount_on_all:
+                type: number
+              note:
+                type: string
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/PurchaseReturnItemBody'
+              payment:
+                $ref: '#/definitions/PurchaseReturnPaymentBody'
+            required:
+            - purchase_id
+            - return_date
+            - items
+          SaleReturnBody:
+            type: object
+            properties:
+              sale_id:
+                type: integer
+              return_date:
+                type: string
+              reference_no:
+                type: string
+              status:
+                type: string
+              created_by:
+                type: integer
+              other_charges:
+                type: number
+              discount_on_all:
+                type: number
+              note:
+                type: string
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/SaleReturnItemBody'
+              payment:
+                $ref: '#/definitions/SaleReturnPaymentBody'
+            required:
+            - sale_id
+            - return_date
+            - items
+          ExpenseBody:
+            type: object
+            properties:
+              expense_date:
+                type: string
+              category_id:
+                type: integer
+              reference_no:
+                type: string
+              expense_for:
+                type: string
+              amount:
+                type: number
+              note:
+                type: string
+              created_by:
+                type: integer
+            required:
+            - expense_date
+            - category_id
+            - amount
+  PlacesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/places/app.lambda_handler
+      Events:
+        GetCountries:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /countries
+            Method: get
+        CreateCountry:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /countries
+            Method: post
+            RequestModel:
+              Model: CountryBody
+        UpdateCountry:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /countries
+            Method: put
+            RequestModel:
+              Model: CountryBody
+        DeleteCountry:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /countries
+            Method: delete
+        GetStates:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /states
+            Method: get
+        CreateState:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /states
+            Method: post
+            RequestModel:
+              Model: StateBody
+        UpdateState:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /states
+            Method: put
+            RequestModel:
+              Model: StateBody
+        DeleteState:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /states
+            Method: delete
+      CodeUri: PlacesFunction
+    Metadata:
+      SamResourceId: PlacesFunction
+  CustomersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/customers/app.lambda_handler
+      Events:
+        GetCustomers:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /customers
+            Method: get
+        CreateCustomer:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /customers
+            Method: post
+            RequestModel:
+              Model: CustomerBody
+        UpdateCustomer:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /customers
+            Method: put
+            RequestModel:
+              Model: CustomerBody
+        DeleteCustomer:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /customers
+            Method: delete
+      CodeUri: CustomersFunction
+    Metadata:
+      SamResourceId: CustomersFunction
+  SuppliersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/suppliers/app.lambda_handler
+      Events:
+        GetSuppliers:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /suppliers
+            Method: get
+        CreateSupplier:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /suppliers
+            Method: post
+            RequestModel:
+              Model: SupplierBody
+        UpdateSupplier:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /suppliers
+            Method: put
+            RequestModel:
+              Model: SupplierBody
+        DeleteSupplier:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /suppliers
+            Method: delete
+      CodeUri: SuppliersFunction
+    Metadata:
+      SamResourceId: SuppliersFunction
+  CategoriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/categories/app.lambda_handler
+      Events:
+        GetCategories:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /categories
+            Method: get
+        CreateCategory:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /categories
+            Method: post
+            RequestModel:
+              Model: CategoryBody
+        UpdateCategory:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /categories
+            Method: put
+            RequestModel:
+              Model: CategoryBody
+        DeleteCategory:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /categories
+            Method: delete
+      CodeUri: CategoriesFunction
+    Metadata:
+      SamResourceId: CategoriesFunction
+  ProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/products/app.lambda_handler
+      Events:
+        GetProducts:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /products
+            Method: get
+        CreateProduct:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /products
+            Method: post
+            RequestModel:
+              Model: ProductBody
+        UpdateProduct:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /products
+            Method: put
+            RequestModel:
+              Model: ProductBody
+        DeleteProduct:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /products
+            Method: delete
+      CodeUri: ProductsFunction
+    Metadata:
+      SamResourceId: ProductsFunction
+  BrandsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/brands/app.lambda_handler
+      Events:
+        GetBrands:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /brands
+            Method: get
+        CreateBrand:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /brands
+            Method: post
+            RequestModel:
+              Model: BrandBody
+        UpdateBrand:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /brands
+            Method: put
+            RequestModel:
+              Model: BrandBody
+        DeleteBrand:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /brands
+            Method: delete
+      CodeUri: BrandsFunction
+    Metadata:
+      SamResourceId: BrandsFunction
+  UnitsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/units/app.lambda_handler
+      Events:
+        GetUnits:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /units
+            Method: get
+        CreateUnit:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /units
+            Method: post
+            RequestModel:
+              Model: UnitBody
+        UpdateUnit:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /units
+            Method: put
+            RequestModel:
+              Model: UnitBody
+        DeleteUnit:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /units
+            Method: delete
+      CodeUri: UnitsFunction
+    Metadata:
+      SamResourceId: UnitsFunction
+  TaxesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/taxes/app.lambda_handler
+      Events:
+        GetTaxes:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /taxes
+            Method: get
+        CreateTax:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /taxes
+            Method: post
+            RequestModel:
+              Model: TaxBody
+        UpdateTax:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /taxes
+            Method: put
+            RequestModel:
+              Model: TaxBody
+        DeleteTax:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /taxes
+            Method: delete
+      CodeUri: TaxesFunction
+    Metadata:
+      SamResourceId: TaxesFunction
+  PurchasesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/purchases/app.lambda_handler
+      Events:
+        GetPurchases:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchases
+            Method: get
+        CreatePurchase:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchases
+            Method: post
+            RequestModel:
+              Model: PurchaseBody
+        UpdatePurchase:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchases
+            Method: put
+            RequestModel:
+              Model: PurchaseBody
+        DeletePurchase:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchases
+            Method: delete
+      CodeUri: PurchasesFunction
+    Metadata:
+      SamResourceId: PurchasesFunction
+  SalesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/sales/app.lambda_handler
+      Events:
+        GetSales:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales
+            Method: get
+        CreateSale:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales
+            Method: post
+            RequestModel:
+              Model: SalesBody
+        UpdateSale:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales
+            Method: put
+            RequestModel:
+              Model: SalesBody
+        DeleteSale:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales
+            Method: delete
+      CodeUri: SalesFunction
+    Metadata:
+      SamResourceId: SalesFunction
+  SalesReturnFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/sales_return/app.lambda_handler
+      Events:
+        GetSalesReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales-return
+            Method: get
+        CreateSalesReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales-return
+            Method: post
+            RequestModel:
+              Model: SaleReturnBody
+        UpdateSalesReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales-return
+            Method: put
+            RequestModel:
+              Model: SaleReturnBody
+        DeleteSalesReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /sales-return
+            Method: delete
+      CodeUri: SalesReturnFunction
+    Metadata:
+      SamResourceId: SalesReturnFunction
+  PurchaseReturnFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/purchase_return/app.lambda_handler
+      Events:
+        GetPurchaseReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchase-return
+            Method: get
+        CreatePurchaseReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchase-return
+            Method: post
+            RequestModel:
+              Model: PurchaseReturnBody
+        UpdatePurchaseReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchase-return
+            Method: put
+            RequestModel:
+              Model: PurchaseReturnBody
+        DeletePurchaseReturn:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /purchase-return
+            Method: delete
+      CodeUri: PurchaseReturnFunction
+    Metadata:
+      SamResourceId: PurchaseReturnFunction
+  ExpensesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: functions/expenses/app.lambda_handler
+      Events:
+        GetExpenses:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /expenses
+            Method: get
+        CreateExpense:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /expenses
+            Method: post
+            RequestModel:
+              Model: ExpenseBody
+        UpdateExpense:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /expenses
+            Method: put
+            RequestModel:
+              Model: ExpenseBody
+        DeleteExpense:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: PlacesApi
+            Path: /expenses
+            Method: delete
+      CodeUri: ExpensesFunction
+    Metadata:
+      SamResourceId: ExpensesFunction

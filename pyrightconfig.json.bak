@@ -1,0 +1,19 @@
+{
+    "include": [
+        "."
+    ],
+    "exclude": [
+        ".aws-sam",
+        "**/__pycache__"
+    ],
+    "extraPaths": [
+        ".",
+        "C:/Users/acer/AppData/Local/Programs/Python/Python311/Lib/site-packages"
+    ],
+
+    "typeCheckingMode": "basic",
+    "reportMissingImports": "error"
+}
+
+
+
